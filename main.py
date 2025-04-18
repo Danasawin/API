@@ -21,13 +21,21 @@ def hello_word():
 
 @app.post('/message')
 async def hello_word(request: Request):
-    signature = request.headers['X-Line-Signature']
+    signature = request.headers.get('X-Line-Signature')  # Use get() instead of direct access
+    if not signature:
+        return {"error": "X-Line-Signature header missing"}  # Return a friendly error message
+
     body = await request.body()
     
     try:
-      handler.handle(body.decode('UTF-8'), signature)
+        handler.handle(body.decode('UTF-8'), signature)
     except InvalidSignatureError:
         print("Invalid signature. Please check your channel access token/channel secret.")
+        return {"error": "Invalid signature"}
+    except Exception as e:
+        print(f"Error processing request: {str(e)}")
+        return {"error": "Internal server error"}
+    
     return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
