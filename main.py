@@ -38,6 +38,10 @@ async def message(request: Request):
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
+    if event.mode != "active":
+        print("Standby mode: cannot reply to message.")
+        return  # Skip replying
+
     if event.message.text == "สวัสดี":
         send_message(event, "สวัสดีชาวโลก")
     else:
