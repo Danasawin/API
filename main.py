@@ -24,7 +24,7 @@ async def hello_word(request: Request):
     signature = request.headers.get('X-Line-Signature')  # Use get() instead of direct access
     if not signature:
         return {"error": "X-Line-Signature header missing"}  # Return a friendly error message
-
+    print(body)
     body = await request.body()
     
     try:
