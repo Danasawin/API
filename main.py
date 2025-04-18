@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from typing import Optional
 from linebot import (
     LineBotApi, WebhookHandler
@@ -9,7 +9,10 @@ from linebot.exceptions import (
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage,
 )
-
+import base64
+import hashlib
+import hmac
+from linebot import LineBotApi, WebhookHandler
 app = FastAPI()
 
 line_bot_api = LineBotApi('UmJLwtX2GPLFyATOW8wF7t1vxlbwifazDxVlz0VnFZFGlJykK/1LusDXRDWIFBkK8ZtPrdjWray3Nwh1tY6z/D3+Rq4Q9JLjjtdNZ62bII+OJ4CMMaEFZzXBe32MLa9kutOYFRvmzq/cz3sNurzCDAdB04t89/1O/w1cDnyilFU=')
@@ -18,18 +21,6 @@ handler = WebhookHandler('1c6f587d59c7c2767657fc02a2b3649b')
 @app.get('/hello')
 def hello_word():
     return {"hello" : "world"}
-
-from fastapi import FastAPI, Request, HTTPException
-import base64
-import hashlib
-import hmac
-from linebot import LineBotApi, WebhookHandler
-from linebot.models import MessageEvent, TextMessage
-
-app = FastAPI()
-
-line_bot_api = LineBotApi('YOUR_CHANNEL_ACCESS_TOKEN')
-handler = WebhookHandler('YOUR_CHANNEL_SECRET')
 
 @app.post("/message")
 async def hello_word(request: Request):
