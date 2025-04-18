@@ -22,32 +22,24 @@ handler = WebhookHandler('1c6f587d59c7c2767657fc02a2b3649b')
 def hello_word():
     return {"hello" : "world"}
 
-@app.post("/message")
+@app.post('/message')
 async def hello_word(request: Request):
-    # Step 1: Read the incoming request body
+    signature = request.headers.get('X-Line-Signature')  # Use get() instead of direct access
+    if not signature:
+        return {"error": "X-Line-Signature header missing"}  # Return a friendly error message
+    print(body)
     body = await request.body()
     
-    # Step 2: Log the raw body for debugging purposes
-    print("Request body:", body)
+    try:
+        handler.handle(body.decode('UTF-8'), signature)
+    except InvalidSignatureError:
+        print("Invalid signature. Please check your channel access token/channel secret.")
+        return {"error": "Invalid signature"}
+    except Exception as e:
+        print(f"Error processing request: {str(e)}")
+        return {"error": "Internal server error"}
     
-    # Step 3: Extract the signature and verify it
-    signature = request.headers.get('X-Line-Signature')
-    if not signature:
-        raise HTTPException(status_code=400, detail="X-Line-Signature header missing")
-
-    # Step 4: Verify the signature
-    hash = hmac.new(
-        '1c6f587d59c7c2767657fc02a2b3649b'.encode('utf-8'),
-        body,
-        hashlib.sha256
-    ).digest()
-    
-    if signature != base64.b64encode(hash).decode():
-        raise HTTPException(status_code=400, detail="Invalid signature")
-    
-    # Step 5: Process the event using the handler
-    handler.handle(body)
-    return {"message": "success"}
+    return 'OK'
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
