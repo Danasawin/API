@@ -37,7 +37,7 @@ async def hello_word(request: Request):
 
     # Step 4: Verify the signature
     hash = hmac.new(
-        'YOUR_CHANNEL_SECRET'.encode('utf-8'),
+        '1c6f587d59c7c2767657fc02a2b3649b'.encode('utf-8'),
         body,
         hashlib.sha256
     ).digest()
