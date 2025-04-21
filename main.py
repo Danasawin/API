@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
@@ -15,9 +15,17 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 
 @app.post("/callback")
 async def callback(request: Request):
+    signature = request.headers.get("X-Line-Signature")
+    if signature is None:
+        raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
+
     body = await request.body()
-    signature = request.headers["X-Line-Signature"]
-    handler.handle(body.decode(), signature)
+
+    try:
+        handler.handle(body.decode(), signature)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error handling message: {str(e)}")
+
     return "OK"
 
 @handler.add(MessageEvent, message=TextMessage)
