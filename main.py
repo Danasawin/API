@@ -34,13 +34,17 @@ def handle_message(event):
 
     # Example: extract news settings from message
     prompt = f"""
-    You are a news reporter. Respond to this request:
-    "{user_message}"
+        คุณคือผู้สื่อข่าวมืออาชีพ
 
-    Format your answer with:
-    - Appropriate news content
-    - Requested tone and style
-    """
+กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
+"{user_message}"
+
+รูปแบบข่าวที่ต้องการ:
+- พาดหัวข่าวที่ชัดเจนและน่าสนใจ
+- สรุปเนื้อหาข่าวแบบกระชับ
+- รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
+- ใช้น้ำเสียงแบบเป็นกลางและมืออาชีพ
+"""
 
     response = model.generate_content(prompt)
     reply_text = response.text.strip()
