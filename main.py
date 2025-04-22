@@ -46,31 +46,18 @@ async def callback(request: Request):
 def handle_message(event):
     user_message = event.message.text
 
-    try:
-        # Expecting message like:
-        # หัวข้อข่าว: เทคโนโลยี
-        # น้ำเสียง: เป็นกลาง
-        # รูปแบบการนำเสนอ: สรุปข่าว
-        lines = user_message.strip().split('\n')
-        category = lines[0].split(':')[1].strip() if len(lines) > 0 else ''
-        voice = lines[1].split(':')[1].strip() if len(lines) > 1 else ''
-        news_type = lines[2].split(':')[1].strip() if len(lines) > 2 else ''
-    except Exception:
-        category = user_message
-        voice = news_type = ''
-
+    # Example: extract news settings from message
     prompt = f"""
-คุณคือผู้สื่อข่าวมืออาชีพ
+        คุณคือผู้สื่อข่าวมืออาชีพ
 
-หัวข้อข่าว: "{category}"
-น้ำเสียงที่ต้องการ: {voice}
-รูปแบบการรายงาน: {news_type}
+กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
+"{user_message}"
 
-กรุณาจัดทำรายงานข่าวจากหัวข้อข่าวโดยใช้รูปแบบที่กำหนด:
+รูปแบบข่าวที่ต้องการ:
 - พาดหัวข่าวที่ชัดเจนและน่าสนใจ
 - สรุปเนื้อหาข่าวแบบกระชับ
 - รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
-- เขียนด้วยน้ำเสียงที่กำหนด
+- ใช้น้ำเสียงแบบเป็นกลางและมืออาชีพ
 """
 
     response = model.generate_content(prompt)
