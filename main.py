@@ -5,6 +5,9 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
 
+app = FastAPI()
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Or specify your frontend domain
@@ -14,7 +17,7 @@ app.add_middleware(
 )
 
 
-app = FastAPI()
+
 
 # LINE credentials
 line_bot_api = LineBotApi('eKkMgEbccG7xaNbNrk2V3vMSkvRT2i8rQCbQpMknar4t2k8Vy7bH3oaqAxmjmoCz0EtEVoJAdQWInsrg4Cm/06qBd8kyhmNhb9dAQkqKNYlxsJi6bdy0nEQ8NYkrKnCB8/8ZGH09ny3INKSxt0s2mQdB04t89/1O/w1cDnyilFU=')
@@ -42,18 +45,31 @@ async def callback(request: Request):
 def handle_message(event):
     user_message = event.message.text
 
-    # Example: extract news settings from message
+    try:
+        # Expecting message like:
+        # หัวข้อข่าว: เทคโนโลยี
+        # น้ำเสียง: เป็นกลาง
+        # รูปแบบการนำเสนอ: สรุปข่าว
+        lines = user_message.strip().split('\n')
+        category = lines[0].split(':')[1].strip() if len(lines) > 0 else ''
+        voice = lines[1].split(':')[1].strip() if len(lines) > 1 else ''
+        news_type = lines[2].split(':')[1].strip() if len(lines) > 2 else ''
+    except Exception:
+        category = user_message
+        voice = news_type = ''
+
     prompt = f"""
-        คุณคือผู้สื่อข่าวมืออาชีพ
+คุณคือผู้สื่อข่าวมืออาชีพ
 
-กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
-"{user_message}"
+หัวข้อข่าว: "{category}"
+น้ำเสียงที่ต้องการ: {voice}
+รูปแบบการรายงาน: {news_type}
 
-รูปแบบข่าวที่ต้องการ:
+กรุณาจัดทำรายงานข่าวจากหัวข้อข่าวโดยใช้รูปแบบที่กำหนด:
 - พาดหัวข่าวที่ชัดเจนและน่าสนใจ
 - สรุปเนื้อหาข่าวแบบกระชับ
 - รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
-- ใช้น้ำเสียงแบบเป็นกลางและมืออาชีพ
+- เขียนด้วยน้ำเสียงที่กำหนด
 """
 
     response = model.generate_content(prompt)
