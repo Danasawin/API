@@ -4,7 +4,8 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
-
+from pydantic import BaseModel
+from linebot.models import TextSendMessage
 app = FastAPI()
 
 
@@ -79,3 +80,36 @@ def handle_message(event):
         event.reply_token,
         TextSendMessage(text=reply_text)
     )
+
+
+
+class NewsRequest(BaseModel):
+    user_id: str
+    category: str
+    voice: str
+    news_type: str
+
+@app.post("/generate-news")
+async def generate_news(data: NewsRequest):
+    prompt = f"""
+คุณคือผู้สื่อข่าวมืออาชีพ
+
+หัวข้อข่าว: "{data.category}"
+น้ำเสียงที่ต้องการ: {data.voice}
+รูปแบบการรายงาน: {data.news_type}
+
+กรุณาจัดทำรายงานข่าวจากหัวข้อข่าวโดยใช้รูปแบบที่กำหนด:
+- พาดหัวข่าวที่ชัดเจนและน่าสนใจ
+- สรุปเนื้อหาข่าวแบบกระชับ
+- รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
+- เขียนด้วยน้ำเสียงที่กำหนด
+"""
+    try:
+        response = model.generate_content(prompt)
+        reply_text = response.text.strip()
+
+        # Push message to the user
+        line_bot_api.push_message(data.user_id, TextSendMessage(text=reply_text))
+        return {"status": "ok", "message": "News sent!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
