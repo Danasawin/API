@@ -104,6 +104,47 @@ def handle_message(event):
 
     asyncio.run(respond(event))
 
+@app.post("/callback2")
+async def callback(request: Request):
+    signature = request.headers.get("X-Line-Signature")
+    if signature is None:
+        raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
+
+    body = await request.body()
+
+    try:
+        handler.handle(body.decode(), signature)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error handling message: {str(e)}")
+
+    return "OK"
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    user_message = event.message.text
+
+    # Example: extract news settings from message
+    prompt = f"""
+        คุณคือผู้สื่อข่าวมืออาชีพ
+
+กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
+"{user_message}"
+
+รูปแบบข่าวที่ต้องการ:
+- พาดหัวข่าวที่ชัดเจนและน่าสนใจ
+- สรุปเนื้อหาข่าวแบบกระชับ
+- รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
+- ใช้น้ำเสียงแบบเป็นกลางและมืออาชีพ
+"""
+
+    response = model.generate_content(prompt)
+    reply_text = response.text.strip()
+
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=reply_text)
+    )
+
 
 
 class NewsRequest(BaseModel):
