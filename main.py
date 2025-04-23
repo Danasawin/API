@@ -7,6 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from linebot.models import TextSendMessage
 from datetime import datetime
+from openperplex import OpenperplexAsync
+import json
+
 app = FastAPI()
 
 
@@ -28,6 +31,10 @@ handler = WebhookHandler('de8adfeffdaf6b8490df64b19079c6b6')
 genai.configure(api_key="AIzaSyCIzdW0XY_OBuCJtJ3pgI-nph04tn3-LeM")
 model = genai.GenerativeModel("gemini-2.0-flash")
 
+
+# OpenPerplex API client
+client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
+
 @app.post("/callback")
 async def callback(request: Request):
     signature = request.headers.get("X-Line-Signature")
@@ -44,65 +51,57 @@ async def callback(request: Request):
     return "OK"
 
 @handler.add(MessageEvent, message=TextMessage)
+@handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    user_message = event.message.text
-    today_date = datetime.now().strftime("%d %B %Y")
+    import asyncio
 
-    # Example: extract news settings from message
-    prompt = f"""
-คุณคือผู้สื่อข่าวมืออาชีพ 📰
+    async def respond():
+        try:
+            # Extract text from user message
+            user_input = event.message.text.strip().lower()
 
-กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
-🗂️ หัวข้อ: "{user_message}"
-จากเว็ป ไทยรัฐ
-🎯 โปรดจัดทำรายงานข่าวในรูปแบบต่อไปนี้:
-1️⃣ พาดหัวข่าวให้น่าสนใจ ดึงดูดความสนใจผู้อ่าน
-2️⃣ สรุปเนื้อหาให้ชัดเจน กระชับ เข้าใจง่าย
-3️⃣ เพิ่มรายละเอียดที่เกี่ยวข้อง เป็นข้อเท็จจริง
-4️⃣ ใช้น้ำเสียงที่เป็นกลาง มืออาชีพ และน่าเชื่อถือ
+            # Keyword-to-URL mapping
+            url_map = {
+                "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
+                "กีฬา": "https://www.thairath.co.th/sport",
+                "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
+                "การเมือง": "https://www.thairath.co.th/news/politic",
+                "การเงิน": "https://www.thairath.co.th/money",
+                "สุขภาพ": "https://www.thairath.co.th/lifestyle/health-and-beauty",
 
-💡 **ข้อกำหนดในการจัดรูปแบบ**
-- ห้ามใช้เครื่องหมาย * หรือ markdown ใดๆ
-- ห้ามใช้ตัวหนาหรือเอียง
-- ใช้ emoji เพื่อแยกหัวข้อย่อย เช่น 🔍 ✏️ 📢
-- จัดบรรทัดใหม่เพื่อความอ่านง่าย
-- เหมาะกับการแสดงผลใน LINE ที่รองรับข้อความล้วน (plain text)
+            }
 
-📅 **กรุณาจัดทำข่าวเฉพาะในวันนี้ ({today_date}) เท่านั้น**
+            # Default to homepage if not matched
+            matched_url = url_map.get(user_input, "https://www.thairath.co.th")
 
-🗞️ **โปรดระบุแหล่งที่มาของข่าวด้วย**
-
-ตัวอย่างโครงสร้างที่ต้องการ:
-
-📰 หัวข้อข่าว
-
-✏️ สรุปข่าว  
-เนื้อหา...
-
-🔍 รายละเอียด  
-หัวข้อย่อย 1  
-คำอธิบาย...
-
-🛡️ แนวทางแก้ไข  
-รายการ 1  
-รายการ 2
-
-📢 ข้อคิดหรือข้อเสนอแนะ
-
-📰 แหล่งที่มา: [ชื่อแหล่งที่มา เช่น เว็บไซต์ข่าว X]
+            today = datetime.now().strftime("%d %B %Y")
+            query = f"""
+ขอข่าวที่เป็นกระแสในหมวด '{user_input}' ประจำวันที่ {today}
+จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก
+(โปรดใช้ภาษาที่เข้าใจง่าย และแสดงแหล่งอ้างอิงด้วย)
 """
 
+            response = await client.query_from_url(
+                url=matched_url,
+                query=query,
+                model='gemini-2.0-flash',
+                response_language="th",
+            )
 
+            news = response.get('llm_response', 'ไม่พบข่าวที่ร้องขอ')
 
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=news)
+            )
 
+        except Exception as e:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
+            )
 
-    response = model.generate_content(prompt)
-    reply_text = response.text.strip()
-
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text)
-    )
+    asyncio.create_task(respond())
 
 
 
