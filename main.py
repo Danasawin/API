@@ -8,7 +8,9 @@ from datetime import datetime
 from openperplex import OpenperplexAsync
 import google.generativeai as genai
 import asyncio
-
+import hmac
+import hashlib
+import base64
 app = FastAPI()
 
 
@@ -34,6 +36,11 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 # OpenPerplex API client
 client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
 
+def verify_signature(channel_secret, body, signature):
+    hash = hmac.new(channel_secret.encode('utf-8'), body, hashlib.sha256).digest()
+    expected_signature = base64.b64encode(hash).decode('utf-8')
+    return hmac.compare_digest(expected_signature, signature)
+
 @app.post("/callback")
 async def callback(request: Request):
     signature = request.headers.get("X-Line-Signature")
@@ -51,8 +58,7 @@ async def callback(request: Request):
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    loop = asyncio.get_event_loop()
-    loop.create_task(respond(event))
+    asyncio.create_task(respond(event))
 
     async def respond():
         try:
