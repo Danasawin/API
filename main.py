@@ -58,7 +58,7 @@ def handle_message(event):
         try:
             # Extract text from user message
             user_input = event.message.text.strip().lower()
-
+            print(user_input)
             # Keyword-to-URL mapping
             url_map = {
                 "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
