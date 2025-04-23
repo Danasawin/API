@@ -9,36 +9,9 @@ from openperplex import OpenperplexAsync
 from httpx import AsyncClient as AsyncHTTPClient
 import google.generativeai as genai
 import re
-from linebot.models import FlexSendMessage
+from linebot.models import StickerSendMessage
 
-loading_flex = FlexSendMessage(
-    alt_text="กำลังโหลด...",
-    contents={
-        "type": "bubble",
-        "body": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "md",
-            "contents": [
-                {
-                    "type": "text",
-                    "text": "⏳ กำลังรวบรวมข่าว...",
-                    "weight": "bold",
-                    "size": "md",
-                    "wrap": True,
-                    "align": "center"
-                },
-                {
-                    "type": "text",
-                    "text": "● ○ ○",  # Simulated animated dots
-                    "size": "lg",
-                    "align": "center",
-                    "color": "#aaaaaa"
-                }
-            ]
-        }
-    }
-)
+
 
 def clean_and_add_emojis(text: str) -> str:
     # Remove asterisks
@@ -113,10 +86,14 @@ async def handle_keyword_news(event: MessageEvent):
 
         if user_input in url_map:
             # ส่งข้อความแจ้งว่ากำลังโหลดก่อน
-            await line_bot_api.reply_message(
+            loading_message = await line_bot_api.reply_message(
                 event.reply_token,
-                 loading_flex
+                StickerSendMessage(
+                   package_id='11538',   # Popular animated stickers
+                   sticker_id='51626502' # Cute one that feels like "loading..."
+                     )
                     )
+
 
 
             url = url_map[user_input]
@@ -135,6 +112,7 @@ async def handle_keyword_news(event: MessageEvent):
             result = response.get("llm_response", "ไม่พบข่าวที่ร้องขอ")
             result = clean_and_add_emojis(result)
 
+            await line_bot_api.delete_message(loading_message.id)
             # ส่งข่าวจริงทีหลัง
             await line_bot_api.push_message(
                 event.source.user_id,
