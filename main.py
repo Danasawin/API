@@ -37,16 +37,13 @@ client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
 @app.post("/callback")
 async def callback(request: Request):
     signature = request.headers.get("X-Line-Signature")
-    body = await request.body()
-    print("Received webhook:", body.decode())
-
     if signature is None:
         raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
 
+    body = await request.body()
+
     try:
         handler.handle(body.decode(), signature)
-    except InvalidSignatureError:
-        raise HTTPException(status_code=400, detail="Invalid signature")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error handling message: {str(e)}")
 
@@ -105,7 +102,7 @@ def handle_message(event):
     asyncio.run(respond(event))
 
 @app.post("/callback2")
-async def callback(request: Request):
+async def callback2(request: Request):
     signature = request.headers.get("X-Line-Signature")
     if signature is None:
         raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
@@ -120,7 +117,7 @@ async def callback(request: Request):
     return "OK"
 
 @handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
+def handle_message2(event):
     user_message = event.message.text
 
     # Example: extract news settings from message
