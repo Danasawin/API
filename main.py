@@ -5,21 +5,9 @@ from linebot.webhook import WebhookParser
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
-import google.generativeai as genai
-import os
-from dotenv import load_dotenv
 from openperplex import OpenperplexAsync
-from aiohttp import ClientSession
-from linebot.exceptions import LineBotApiError
+import google.generativeai as genai
 
-# Load environment variables
-load_dotenv()
-
-async def create_line_bot_api():
-    session = ClientSession()
-    line_bot_api = AsyncLineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"), async_http_client=session)
-    return line_bot_api
-# Initialize FastAPI app
 app = FastAPI()
 
 # CORS config
@@ -32,15 +20,14 @@ app.add_middleware(
 )
 
 # LINE & OpenPerplex setup
-line_bot_api = AsyncLineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
-parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
+line_bot_api = AsyncLineBotApi('eKkMgEbccG7xaNbNrk2V3vMSkvRT2i8rQCbQpMknar4t2k8Vy7bH3oaqAxmjmoCz0EtEVoJAdQWInsrg4Cm/06qBd8kyhmNhb9dAQkqKNYlxsJi6bdy0nEQ8NYkrKnCB8/8ZGH09ny3INKSxt0s2mQdB04t89/1O/w1cDnyilFU=')
+parser = WebhookParser('de8adfeffdaf6b8490df64b19079c6b6')
 
-# Gemini setup
-genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+# Gemini still used only for /generate-news
+genai.configure(api_key="AIzaSyCIzdW0XY_OBuCJtJ3pgI-nph04tn3-LeM")
 model = genai.GenerativeModel("gemini-2.0-flash")
 
-# OpenPerplex setup
-client = OpenperplexAsync(api_key=os.getenv("OPENPERPLEX_API_KEY"))
+client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
 
 @app.post("/callback")
 async def callback(request: Request):
@@ -83,7 +70,6 @@ async def handle_keyword_news(event: MessageEvent):
 จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก
 (โปรดใช้ภาษาที่เข้าใจง่าย และแสดงแหล่งอ้างอิงด้วย)
 """
-            # Query the OpenPerplex API
             response = await client.query_from_url(
                 url=url,
                 query=query,
@@ -94,7 +80,6 @@ async def handle_keyword_news(event: MessageEvent):
         else:
             result = "กรุณาพิมพ์ชื่อหมวดข่าว เช่น กีฬา, การเมือง, สุขภาพ เป็นต้น"
 
-        # Send reply back to the user on LINE
         await line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=result)
@@ -121,7 +106,7 @@ async def generate_news(data: NewsRequest):
 🗂️ หัวข้อข่าว: "{data.category}"  
 🎙️ น้ำเสียงที่ต้องการ: {data.voice}  
 📝 รูปแบบการรายงาน: {data.news_type}
-📅 **กรุณาจัดทำข่าวเฉพาะในวันนี้ ({today_date}) เท่านั้น**  
+📅 **กรุณาจัดทำข่าวเฉพาะในวันนี้ ({today_date}) เท่านั้น**
 
 โปรดจัดทำรายงานข่าวในรูปแบบที่เหมาะสมกับการส่งผ่าน LINE โดยใช้การจัดรูปแบบด้วยอีโมจิและสัญลักษณ์ เพื่อให้อ่านง่าย:
 
@@ -136,17 +121,14 @@ async def generate_news(data: NewsRequest):
 
 🎯 น้ำเสียงที่ใช้: {data.voice}
 
-❗ โปรดเขียนในภาษาที่เข้าใจง่ายสำหรับผู้อ่านทั่วไป และไม่ต้องใส่ Markdown หรือ HTML  
+❗ โปรดเขียนในภาษาที่เข้าใจง่ายสำหรับผู้อ่านทั่วไป และไม่ต้องใส่ Markdown หรือ HTML
 📰 แหล่งที่มา: [ชื่อแหล่งที่มา เช่น เว็บไซต์ข่าว X]
 """
 
     try:
-        # Requesting Gemini to generate content
         response = model.generate_content(prompt)
         reply_text = response.text.strip()
-        
-        # Sending generated news to the user on LINE
         await line_bot_api.push_message(data.user_id, TextSendMessage(text=reply_text))
         return {"status": "ok", "message": "News sent!"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating news: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
