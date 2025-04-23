@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from linebot.models import TextSendMessage
 from datetime import datetime
-from openperplex import OpenperplexAsync
+from openperplex import OpenPerplex
 import json
 
 app = FastAPI()
@@ -33,7 +33,7 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 
 
 # OpenPerplex API client
-client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
+client = OpenPerplex(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
 
 @app.post("/callback")
 async def callback(request: Request):
@@ -50,7 +50,6 @@ async def callback(request: Request):
 
     return "OK"
 
-@handler.add(MessageEvent, message=TextMessage)
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     import asyncio
@@ -101,7 +100,7 @@ def handle_message(event):
                 TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
             )
 
-    asyncio.create_task(respond())
+    asyncio.run(respond(event))
 
 
 
