@@ -86,14 +86,7 @@ async def handle_keyword_news(event: MessageEvent):
 
         if user_input in url_map:
             # ส่งข้อความแจ้งว่ากำลังโหลดก่อน
-            loading_message = await line_bot_api.reply_message(
-                event.reply_token,
-                StickerSendMessage(
-                   package_id='11538',   # Popular animated stickers
-                   sticker_id='51626502' # Cute one that feels like "loading..."
-                     )
-                    )
-
+        
 
 
             url = url_map[user_input]
@@ -112,7 +105,6 @@ async def handle_keyword_news(event: MessageEvent):
             result = response.get("llm_response", "ไม่พบข่าวที่ร้องขอ")
             result = clean_and_add_emojis(result)
 
-            await line_bot_api.delete_message(loading_message.id)
             # ส่งข่าวจริงทีหลัง
             await line_bot_api.push_message(
                 event.source.user_id,
@@ -212,10 +204,6 @@ async def generate_news(data: NewsRequest):
     if not category_url:
         raise HTTPException(status_code=400, detail="ไม่พบหมวดหมู่ข่าวที่กำหนด")
     
-    await line_bot_api.push_message(
-        data.user_id,
-        TextSendMessage(text="⏳ กำลังดึงข่าวจากแหล่งข่าว กรุณารอสักครู่...")
-    )
 
     query = f"""
 ขอข่าวที่เป็นกระแสในหมวด '{category}' ประจำวันที่ {today_date}
