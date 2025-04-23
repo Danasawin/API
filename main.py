@@ -1,13 +1,16 @@
 from fastapi import FastAPI, Request, HTTPException
-from linebot import LineBotApi, WebhookHandler
+from linebot import AsyncLineBotApi
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
+from linebot.webhook import WebhookParser
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 from openperplex import OpenperplexAsync
 import google.generativeai as genai
-import asyncio
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 app = FastAPI()
 
 # CORS config
@@ -19,38 +22,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# LINE & Gemini setup
-line_bot_api = LineBotApi('YOUR_LINE_CHANNEL_ACCESS_TOKEN')
-handler = WebhookHandler('YOUR_LINE_CHANNEL_SECRET')
+# LINE & OpenPerplex setup
+line_bot_api = AsyncLineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"))
+parser = WebhookParser(os.getenv("LINE_CHANNEL_SECRET"))
 
-genai.configure(api_key="YOUR_GOOGLE_API_KEY")
+# Gemini still used only for /generate-news
 model = genai.GenerativeModel("gemini-2.0-flash")
-client = OpenperplexAsync(api_key="YOUR_OPENPERPLEX_API_KEY")
+
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+client = OpenperplexAsync(api_key=os.getenv("OPENPERPLEX_API_KEY"))
 
 @app.post("/callback")
 async def callback(request: Request):
     signature = request.headers.get("X-Line-Signature")
-    if signature is None:
+    if not signature:
         raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
 
     body = await request.body()
+    body_text = body.decode("utf-8")
 
     try:
-        handler.handle(body.decode(), signature)
+        events = parser.parse(body_text, signature)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error handling message: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Parse error: {str(e)}")
+
+    for event in events:
+        if isinstance(event, MessageEvent) and isinstance(event.message, TextMessage):
+            await handle_keyword_news(event)
 
     return "OK"
 
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message(event):
-    asyncio.create_task(process_message(event))
-
-async def process_message(event: MessageEvent):
+async def handle_keyword_news(event: MessageEvent):
     try:
         user_input = event.message.text.strip().lower()
 
-        # Keyword-based auto-news from ThaiRath
         url_map = {
             "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
             "กีฬา": "https://www.thairath.co.th/sport",
@@ -68,43 +73,27 @@ async def process_message(event: MessageEvent):
 จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก
 (โปรดใช้ภาษาที่เข้าใจง่าย และแสดงแหล่งอ้างอิงด้วย)
 """
-
             response = await client.query_from_url(
                 url=url,
                 query=query,
-                model='gemini-2.0-flash',
+                model="gemini-2.0-flash",
                 response_language="th"
             )
             result = response.get("llm_response", "ไม่พบข่าวที่ร้องขอ")
         else:
-            # Fallback to generative prompt based on free text
-            prompt = f"""
-คุณคือผู้สื่อข่าวมืออาชีพ
+            result = "กรุณาพิมพ์ชื่อหมวดข่าว เช่น กีฬา, การเมือง, สุขภาพ เป็นต้น"
 
-กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
-"{event.message.text}"
-
-รูปแบบข่าวที่ต้องการ:
-- พาดหัวข่าวที่ชัดเจนและน่าสนใจ
-- สรุปเนื้อหาข่าวแบบกระชับ
-- รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
-- ใช้น้ำเสียงแบบเป็นกลางและมืออาชีพ
-"""
-            gemini_response = model.generate_content(prompt)
-            result = gemini_response.text.strip()
-
-        line_bot_api.reply_message(
+        await line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=result)
         )
 
     except Exception as e:
-        line_bot_api.reply_message(
+        await line_bot_api.reply_message(
             event.reply_token,
             TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
         )
 
-# For POST API from your frontend
 class NewsRequest(BaseModel):
     user_id: str
     category: str
@@ -142,7 +131,7 @@ async def generate_news(data: NewsRequest):
     try:
         response = model.generate_content(prompt)
         reply_text = response.text.strip()
-        line_bot_api.push_message(data.user_id, TextSendMessage(text=reply_text))
+        await line_bot_api.push_message(data.user_id, TextSendMessage(text=reply_text))
         return {"status": "ok", "message": "News sent!"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
