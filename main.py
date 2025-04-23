@@ -2,13 +2,12 @@ from fastapi import FastAPI, Request, HTTPException
 from linebot import LineBotApi, WebhookHandler
 from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
-import google.generativeai as genai
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from linebot.models import TextSendMessage
 from datetime import datetime
 from openperplex import OpenPerplex
-import json
+import google.generativeai as genai
+import asyncio
 
 app = FastAPI()
 
@@ -52,7 +51,8 @@ async def callback(request: Request):
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    import asyncio
+    loop = asyncio.get_event_loop()
+    loop.create_task(respond(event))
 
     async def respond():
         try:
