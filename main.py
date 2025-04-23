@@ -9,6 +9,36 @@ from openperplex import OpenperplexAsync
 from httpx import AsyncClient as AsyncHTTPClient
 import google.generativeai as genai
 import re
+from linebot.models import FlexSendMessage
+
+loading_flex = FlexSendMessage(
+    alt_text="กำลังโหลด...",
+    contents={
+        "type": "bubble",
+        "body": {
+            "type": "box",
+            "layout": "vertical",
+            "spacing": "md",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": "⏳ กำลังรวบรวมข่าว...",
+                    "weight": "bold",
+                    "size": "md",
+                    "wrap": True,
+                    "align": "center"
+                },
+                {
+                    "type": "text",
+                    "text": "● ○ ○",  # Simulated animated dots
+                    "size": "lg",
+                    "align": "center",
+                    "color": "#aaaaaa"
+                }
+            ]
+        }
+    }
+)
 
 def clean_and_add_emojis(text: str) -> str:
     # Remove asterisks
@@ -85,8 +115,9 @@ async def handle_keyword_news(event: MessageEvent):
             # ส่งข้อความแจ้งว่ากำลังโหลดก่อน
             await line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="⏳ กำลังรวบรวมข่าวจากแหล่งข่าว โปรดรอสักครู่...")
-            )
+                 loading_flex
+                    )
+
 
             url = url_map[user_input]
             today = datetime.now().strftime("%d %B %Y")
