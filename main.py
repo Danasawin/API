@@ -6,9 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
 from openperplex import OpenperplexAsync
+from httpx import AsyncClient as AsyncHTTPClient
 import google.generativeai as genai
-from linebot import AsyncLineBotApi
-from linebot.http.client import AsyncHTTPClient
 
 app = FastAPI()
 
