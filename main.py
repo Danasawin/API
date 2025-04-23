@@ -9,10 +9,16 @@ import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 from openperplex import OpenperplexAsync
+from aiohttp import ClientSession
+from linebot.exceptions import LineBotApiError
 
 # Load environment variables
 load_dotenv()
 
+async def create_line_bot_api():
+    session = ClientSession()
+    line_bot_api = AsyncLineBotApi(os.getenv("LINE_CHANNEL_ACCESS_TOKEN"), async_http_client=session)
+    return line_bot_api
 # Initialize FastAPI app
 app = FastAPI()
 
