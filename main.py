@@ -56,6 +56,7 @@ async def handle_keyword_news(event: MessageEvent):
         user_input = event.message.text.strip().lower()
 
         url_map = {
+            "รายวัน": "https://www.thairath.co.th",
             "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
             "กีฬา": "https://www.thairath.co.th/sport",
             "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
@@ -96,41 +97,96 @@ async def handle_keyword_news(event: MessageEvent):
 class NewsRequest(BaseModel):
     user_id: str
     category: str
-    voice: str
-    news_type: str
+    source_name: str = "thairath"  # Default news source
+    language: str = "th"           # Default language
+
+
 
 @app.post("/generate-news")
 async def generate_news(data: NewsRequest):
     today_date = datetime.now().strftime("%d %B %Y")
-    prompt = f"""
-🧑‍💼 คุณคือผู้สื่อข่าวมืออาชีพ
 
-🗂️ หัวข้อข่าว: "{data.category}"  
-🎙️ น้ำเสียงที่ต้องการ: {data.voice}  
-📝 รูปแบบการรายงาน: {data.news_type}
-📅 **กรุณาจัดทำข่าวเฉพาะในวันนี้ ({today_date}) เท่านั้น**
+    # Normalize source name and category
+    source = data.source_name.lower()
+    category = data.category.strip()
 
-โปรดจัดทำรายงานข่าวในรูปแบบที่เหมาะสมกับการส่งผ่าน LINE โดยใช้การจัดรูปแบบด้วยอีโมจิและสัญลักษณ์ เพื่อให้อ่านง่าย:
+    # Source & category URL map
+    source_map = {
+        "thairath": "https://www.thairath.co.th",
+        "sanook": "https://www.sanook.com/",
+        "dailynews": "https://www.dailynews.co.th/"
+    }
 
-📰 หัวข้อข่าว: (ใช้พาดหัวข่าวที่น่าสนใจ)
+    category_map = {
+        "thairath": {
+         "รายวัน": "https://www.thairath.co.th",
+            "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
+            "กีฬา": "https://www.thairath.co.th/sport",
+            "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
+            "การเมือง": "https://www.thairath.co.th/news/politic",
+            "การเงิน": "https://www.thairath.co.th/money",
+            "สุขภาพ": "https://www.thairath.co.th/lifestyle/health-and-beauty",
+            "อาญากรรม": "https://www.thairath.co.th/news/crime",
+            "ดูดวง": "https://www.thairath.co.th/horoscope",
+            "ท่องเที่ยว": "https://www.thairath.co.th/lifestyle/travel",
+             "หวย": "https://www.thairath.co.th/lifestyle/travel",
 
-✏️ สรุป:
-- สรุปเนื้อหาสั้น ๆ กระชับ ชัดเจน
 
-🔍 รายละเอียด:
-- ข้อเท็จจริงที่เกี่ยวข้อง
-- เพิ่มข้อมูลเชิงลึกที่น่าสนใจ
 
-🎯 น้ำเสียงที่ใช้: {data.voice}
+        },
+        "sanook": {
+           "เอนเตอร์เทน": "https://www.sanook.com/news/entertain/",
+            "กีฬา": "https://www.sanook.com/sport/t",
+            "เทคโนโลยี": "https://www.sanook.com/it/",
+            "การเมือง": "https://www.sanook.com/news/politic/ ",
+            "การเงิน": "https://www.sanook.com/money/ ",
+            "สุขภาพ": "https://www.sanook.com/health/",
+            "อาญากรรม": "https://www.dailynews.co.th/crime/",
+            "ดูดวง": "https://www.sanook.com/horoscope/ ",
+            "ท่องเที่ยว": "https://www.sanook.com/travel/",
+             "หวย": "https://news.sanook.com/lotto/ ",
 
-❗ โปรดเขียนในภาษาที่เข้าใจง่ายสำหรับผู้อ่านทั่วไป และไม่ต้องใส่ Markdown หรือ HTML
-📰 แหล่งที่มา: [ชื่อแหล่งที่มา เช่น เว็บไซต์ข่าว X]
+        },
+        "dailynews": {
+             "เอนเตอร์เทน": "https://www.dailynews.co.th/news/news_group/entertainment/",
+            "กีฬา": "https://www.dailynews.co.th/sport/",
+            "เทคโนโลยี": "https://www.dailynews.co.th/technology/",
+            "การเมือง": "https://www.dailynews.co.th/politics/",
+            "การเงิน": "https://www.dailynews.co.th/economic/",
+            "สุขภาพ": "https://www.dailynews.co.th/article/articles_group/lifestyle/health/",
+            "อาญากรรม": "https://www.dailynews.co.th/crime/",
+            "ดูดวง": "https://www.dailynews.co.th/horoscope/",
+            "ท่องเที่ยว": "https://www.dailynews.co.th/news/news_group/lifestyle/travel-hotel/",
+             "หวย": "https://www.dailynews.co.th/lotto/",
+
+        }
+    }
+
+    # Get proper URL based on source/category (fallbacks if missing)
+    source_urls = category_map.get(source, category_map["thairath"])
+    category_url = source_urls.get(category, source_urls["เอนเตอร์เทน"])
+
+    query = f"""
+ขอข่าวที่เป็นกระแสในหมวด '{category}' ประจำวันที่ {today_date}
+จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก
+(โปรดใช้ภาษาที่เข้าใจง่าย และแสดงแหล่งอ้างอิงด้วย)
 """
 
     try:
-        response = model.generate_content(prompt)
-        reply_text = response.text.strip()
-        await line_bot_api.push_message(data.user_id, TextSendMessage(text=reply_text))
+        response = await client.query_from_url(
+            url=category_url,
+            query=query,
+            model="gemini-2.0-flash",
+            response_language=data.language
+        )
+
+        result = response.get("llm_response", "ไม่พบข้อมูลจากแหล่งข่าวที่กำหนด")
+
+        await line_bot_api.push_message(
+            data.user_id,
+            TextSendMessage(text=result)
+        )
         return {"status": "ok", "message": "News sent!"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
