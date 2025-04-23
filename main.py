@@ -56,7 +56,7 @@ async def handle_keyword_news(event: MessageEvent):
         user_input = event.message.text.strip().lower()
 
         url_map = {
-            "รายวัน": "https://www.thairath.co.th",
+            "รายวัน": "https://www.thairath.co.th/home",
             "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
             "กีฬา": "https://www.thairath.co.th/sport",
             "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
@@ -70,7 +70,7 @@ async def handle_keyword_news(event: MessageEvent):
             today = datetime.now().strftime("%d %B %Y")
             query = f"""
 ขอข่าวที่เป็นกระแสในหมวด '{user_input}' ประจำวันที่ {today}
-จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก
+จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก หากไม่พบให้ข้อให้เอาข่าวอะไรมาก็ได้จาก url
 (โปรดใช้ภาษาที่เข้าใจง่าย และแสดงแหล่งอ้างอิงด้วย)
 """
             response = await client.query_from_url(
@@ -121,7 +121,7 @@ async def generate_news(data: NewsRequest):
 
     category_map = {
         "thairath": {
-         "รายวัน": "https://www.thairath.co.th",
+            "รายวัน": "https://www.thairath.co.th",
             "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
             "กีฬา": "https://www.thairath.co.th/sport",
             "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
