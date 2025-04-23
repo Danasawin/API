@@ -8,9 +8,6 @@ from datetime import datetime
 from openperplex import OpenperplexAsync
 import google.generativeai as genai
 import asyncio
-import hmac
-import hashlib
-import base64
 app = FastAPI()
 
 
@@ -36,21 +33,20 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 # OpenPerplex API client
 client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
 
-def verify_signature(channel_secret, body, signature):
-    hash = hmac.new(channel_secret.encode('utf-8'), body, hashlib.sha256).digest()
-    expected_signature = base64.b64encode(hash).decode('utf-8')
-    return hmac.compare_digest(expected_signature, signature)
 
 @app.post("/callback")
 async def callback(request: Request):
     signature = request.headers.get("X-Line-Signature")
+    body = await request.body()
+    print("Received webhook:", body.decode())
+
     if signature is None:
         raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
 
-    body = await request.body()
-
     try:
         handler.handle(body.decode(), signature)
+    except InvalidSignatureError:
+        raise HTTPException(status_code=400, detail="Invalid signature")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error handling message: {str(e)}")
 
