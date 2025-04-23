@@ -7,6 +7,8 @@ from pydantic import BaseModel
 from datetime import datetime
 from openperplex import OpenperplexAsync
 import google.generativeai as genai
+from linebot import AsyncLineBotApi
+from linebot.http.client import AsyncHTTPClient
 
 app = FastAPI()
 
@@ -20,7 +22,8 @@ app.add_middleware(
 )
 
 # LINE & OpenPerplex setup
-line_bot_api = AsyncLineBotApi('eKkMgEbccG7xaNbNrk2V3vMSkvRT2i8rQCbQpMknar4t2k8Vy7bH3oaqAxmjmoCz0EtEVoJAdQWInsrg4Cm/06qBd8kyhmNhb9dAQkqKNYlxsJi6bdy0nEQ8NYkrKnCB8/8ZGH09ny3INKSxt0s2mQdB04t89/1O/w1cDnyilFU=')
+async_http_client = AsyncHTTPClient()
+line_bot_api = AsyncLineBotApi('eKkMgEbccG7xaNbNrk2V3vMSkvRT2i8rQCbQpMknar4t2k8Vy7bH3oaqAxmjmoCz0EtEVoJAdQWInsrg4Cm/06qBd8kyhmNhb9dAQkqKNYlxsJi6bdy0nEQ8NYkrKnCB8/8ZGH09ny3INKSxt0s2mQdB04t89/1O/w1cDnyilFU=', async_http_client)
 parser = WebhookParser('de8adfeffdaf6b8490df64b19079c6b6')
 
 # Gemini still used only for /generate-news
