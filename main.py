@@ -82,10 +82,12 @@ async def handle_keyword_news(event: MessageEvent):
         }
 
         if user_input in url_map:
+            # ส่งข้อความแจ้งว่ากำลังโหลดก่อน
             await line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(text="⏳ กำลังรวบรวมข่าวจากแหล่งข่าว โปรดรอสักครู่...")
             )
+
             url = url_map[user_input]
             today = datetime.now().strftime("%d %B %Y")
             query = f"""
@@ -101,19 +103,26 @@ async def handle_keyword_news(event: MessageEvent):
             )
             result = response.get("llm_response", "ไม่พบข่าวที่ร้องขอ")
             result = clean_and_add_emojis(result)
-        else:
-            result = "กรุณาพิมพ์ชื่อหมวดข่าว เช่น กีฬา, การเมือง, สุขภาพ เป็นต้น"
 
-        await line_bot_api.reply_message(
-            event.reply_token,
-            TextSendMessage(text=result)
-        )
+            # ส่งข่าวจริงทีหลัง
+            await line_bot_api.push_message(
+                event.source.user_id,
+                TextSendMessage(text=result)
+            )
+
+        else:
+            # ตอบกลับทันทีถ้าไม่มีหมวดหมู่ที่ถูกต้อง
+            await line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="กรุณาพิมพ์ชื่อหมวดข่าว เช่น กีฬา, การเมือง, สุขภาพ เป็นต้น")
+            )
 
     except Exception as e:
-        await line_bot_api.reply_message(
-            event.reply_token,
+        await line_bot_api.push_message(
+            event.source.user_id,
             TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
         )
+
 
 class NewsRequest(BaseModel):
     user_id: str
