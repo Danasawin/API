@@ -5,7 +5,7 @@ from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from datetime import datetime
-from openperplex import openperplex
+from openperplex import OpenperplexAsync
 import google.generativeai as genai
 import asyncio
 
@@ -32,7 +32,7 @@ model = genai.GenerativeModel("gemini-2.0-flash")
 
 
 # OpenPerplex API client
-client = openperplex(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
+client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
 
 @app.post("/callback")
 async def callback(request: Request):
