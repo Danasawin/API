@@ -97,8 +97,8 @@ async def handle_keyword_news(event: MessageEvent):
 class NewsRequest(BaseModel):
     user_id: str
     category: str
-    source: str  # Default news source
-    language: str   # Default language
+    source: str  
+    language: str   
 
 
 
@@ -107,7 +107,7 @@ async def generate_news(data: NewsRequest):
     today_date = datetime.now().strftime("%d %B %Y")
 
     # Normalize source name and category
-    source = data.source_name.lower()
+    source = data.source.lower()
     category = data.category.strip()
     language = data.language.strip()
 
