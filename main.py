@@ -8,6 +8,22 @@ from datetime import datetime
 from openperplex import OpenperplexAsync
 from httpx import AsyncClient as AsyncHTTPClient
 import google.generativeai as genai
+import re
+
+def clean_and_add_emojis(text: str) -> str:
+    # Remove asterisks
+    text = text.replace("*", "")
+
+    # Add emojis for sections
+    text = re.sub(r"(ข่าวที่ \d+)", r"📰 \1", text)
+    text = re.sub(r"(หัวข้อ:)", r"🗞️ \1", text)
+    text = re.sub(r"(สรุป:)", r"🧠 \1", text)
+    text = re.sub(r"(แหล่งข่าว:)", r"📌 \1", text)
+
+    return text
+
+# Inside your generate_news function after getting the response
+
 
 app = FastAPI()
 
@@ -66,11 +82,15 @@ async def handle_keyword_news(event: MessageEvent):
         }
 
         if user_input in url_map:
+            await line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text="⏳ กำลังรวบรวมข่าวจากแหล่งข่าว โปรดรอสักครู่...")
+            )
             url = url_map[user_input]
             today = datetime.now().strftime("%d %B %Y")
             query = f"""
 ขอข่าวที่เป็นกระแสในหมวด '{user_input}' ประจำวันที่ {today}
-จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก หากไม่พบให้ข้อให้เอาข่าวอะไรมาก็ได้จาก url
+จำนวน 3 หัวข้อ แบบละเอียด พร้อมสรุปและข้อมูลเชิงลึก หากไม่พบให้เอาข่าวอะไรมาก็ได้จาก url
 (โปรดใช้ภาษาที่เข้าใจง่าย และแสดงแหล่งอ้างอิงด้วย)
 """
             response = await client.query_from_url(
@@ -80,6 +100,7 @@ async def handle_keyword_news(event: MessageEvent):
                 response_language="th"
             )
             result = response.get("llm_response", "ไม่พบข่าวที่ร้องขอ")
+            result = clean_and_add_emojis(result)
         else:
             result = "กรุณาพิมพ์ชื่อหมวดข่าว เช่น กีฬา, การเมือง, สุขภาพ เป็นต้น"
 
@@ -172,6 +193,11 @@ async def generate_news(data: NewsRequest):
     category_url = source_categories.get(category)
     if not category_url:
         raise HTTPException(status_code=400, detail="ไม่พบหมวดหมู่ข่าวที่กำหนด")
+    
+    await line_bot_api.push_message(
+        data.user_id,
+        TextSendMessage(text="⏳ กำลังดึงข่าวจากแหล่งข่าว กรุณารอสักครู่...")
+    )
 
     query = f"""
 ขอข่าวที่เป็นกระแสในหมวด '{category}' ประจำวันที่ {today_date}
@@ -188,6 +214,7 @@ async def generate_news(data: NewsRequest):
         )
 
         result = response.get("llm_response", "ไม่พบข้อมูลจากแหล่งข่าวที่กำหนด")
+        result = clean_and_add_emojis(result)
 
         await line_bot_api.push_message(
             data.user_id,
@@ -196,4 +223,8 @@ async def generate_news(data: NewsRequest):
         return {"status": "ok", "message": "News sent!"}
 
     except Exception as e:
+        await line_bot_api.push_message(
+            data.user_id,
+            TextSendMessage(text=f"❌ เกิดข้อผิดพลาด: {str(e)}")
+        )
         raise HTTPException(status_code=500, detail=str(e))
