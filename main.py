@@ -1,6 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
 from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError
 from linebot.models import MessageEvent, TextMessage, TextSendMessage
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -8,31 +7,25 @@ from datetime import datetime
 from openperplex import OpenperplexAsync
 import google.generativeai as genai
 import asyncio
+
 app = FastAPI()
 
-
+# CORS config
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or specify your frontend domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# LINE & Gemini setup
+line_bot_api = LineBotApi('YOUR_LINE_CHANNEL_ACCESS_TOKEN')
+handler = WebhookHandler('YOUR_LINE_CHANNEL_SECRET')
 
-
-
-# LINE credentials
-line_bot_api = LineBotApi('eKkMgEbccG7xaNbNrk2V3vMSkvRT2i8rQCbQpMknar4t2k8Vy7bH3oaqAxmjmoCz0EtEVoJAdQWInsrg4Cm/06qBd8kyhmNhb9dAQkqKNYlxsJi6bdy0nEQ8NYkrKnCB8/8ZGH09ny3INKSxt0s2mQdB04t89/1O/w1cDnyilFU=')
-handler = WebhookHandler('de8adfeffdaf6b8490df64b19079c6b6')
-
-genai.configure(api_key="AIzaSyCIzdW0XY_OBuCJtJ3pgI-nph04tn3-LeM")
+genai.configure(api_key="YOUR_GOOGLE_API_KEY")
 model = genai.GenerativeModel("gemini-2.0-flash")
-
-
-# OpenPerplex API client
-client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
-
+client = OpenperplexAsync(api_key="YOUR_OPENPERPLEX_API_KEY")
 
 @app.post("/callback")
 async def callback(request: Request):
@@ -51,27 +44,24 @@ async def callback(request: Request):
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
-    asyncio.create_task(respond(event))
+    asyncio.create_task(process_message(event))
 
-    async def respond():
-        try:
-            # Extract text from user message
-            user_input = event.message.text.strip().lower()
-            print(user_input)
-            # Keyword-to-URL mapping
-            url_map = {
-                "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
-                "กีฬา": "https://www.thairath.co.th/sport",
-                "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
-                "การเมือง": "https://www.thairath.co.th/news/politic",
-                "การเงิน": "https://www.thairath.co.th/money",
-                "สุขภาพ": "https://www.thairath.co.th/lifestyle/health-and-beauty",
+async def process_message(event: MessageEvent):
+    try:
+        user_input = event.message.text.strip().lower()
 
-            }
+        # Keyword-based auto-news from ThaiRath
+        url_map = {
+            "เอนเตอร์เทน": "https://www.thairath.co.th/entertain",
+            "กีฬา": "https://www.thairath.co.th/sport",
+            "เทคโนโลยี": "https://www.thairath.co.th/lifestyle/tech",
+            "การเมือง": "https://www.thairath.co.th/news/politic",
+            "การเงิน": "https://www.thairath.co.th/money",
+            "สุขภาพ": "https://www.thairath.co.th/lifestyle/health-and-beauty",
+        }
 
-            # Default to homepage if not matched
-            matched_url = url_map.get(user_input, "https://www.thairath.co.th")
-
+        if user_input in url_map:
+            url = url_map[user_input]
             today = datetime.now().strftime("%d %B %Y")
             query = f"""
 ขอข่าวที่เป็นกระแสในหมวด '{user_input}' ประจำวันที่ {today}
@@ -80,52 +70,19 @@ def handle_message(event):
 """
 
             response = await client.query_from_url(
-                url=matched_url,
+                url=url,
                 query=query,
                 model='gemini-2.0-flash',
-                response_language="th",
+                response_language="th"
             )
-
-            news = response.get('llm_response', 'ไม่พบข่าวที่ร้องขอ')
-
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=news)
-            )
-
-        except Exception as e:
-            line_bot_api.reply_message(
-                event.reply_token,
-                TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
-            )
-
-    asyncio.run(respond(event))
-
-@app.post("/callback2")
-async def callback2(request: Request):
-    signature = request.headers.get("X-Line-Signature")
-    if signature is None:
-        raise HTTPException(status_code=400, detail="Missing X-Line-Signature header")
-
-    body = await request.body()
-
-    try:
-        handler.handle(body.decode(), signature)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error handling message: {str(e)}")
-
-    return "OK"
-
-@handler.add(MessageEvent, message=TextMessage)
-def handle_message2(event):
-    user_message = event.message.text
-
-    # Example: extract news settings from message
-    prompt = f"""
-        คุณคือผู้สื่อข่าวมืออาชีพ
+            result = response.get("llm_response", "ไม่พบข่าวที่ร้องขอ")
+        else:
+            # Fallback to generative prompt based on free text
+            prompt = f"""
+คุณคือผู้สื่อข่าวมืออาชีพ
 
 กรุณาจัดทำรายงานข่าวจากหัวข้อต่อไปนี้:
-"{user_message}"
+"{event.message.text}"
 
 รูปแบบข่าวที่ต้องการ:
 - พาดหัวข่าวที่ชัดเจนและน่าสนใจ
@@ -133,17 +90,21 @@ def handle_message2(event):
 - รายละเอียดประกอบที่เกี่ยวข้องและเป็นข้อเท็จจริง
 - ใช้น้ำเสียงแบบเป็นกลางและมืออาชีพ
 """
+            gemini_response = model.generate_content(prompt)
+            result = gemini_response.text.strip()
 
-    response = model.generate_content(prompt)
-    reply_text = response.text.strip()
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=result)
+        )
 
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=reply_text)
-    )
+    except Exception as e:
+        line_bot_api.reply_message(
+            event.reply_token,
+            TextSendMessage(text=f"เกิดข้อผิดพลาด: {str(e)}")
+        )
 
-
-
+# For POST API from your frontend
 class NewsRequest(BaseModel):
     user_id: str
     category: str
@@ -178,12 +139,9 @@ async def generate_news(data: NewsRequest):
 📰 แหล่งที่มา: [ชื่อแหล่งที่มา เช่น เว็บไซต์ข่าว X]
 """
 
-
     try:
         response = model.generate_content(prompt)
         reply_text = response.text.strip()
-
-        # Push message to the user
         line_bot_api.push_message(data.user_id, TextSendMessage(text=reply_text))
         return {"status": "ok", "message": "News sent!"}
     except Exception as e:
