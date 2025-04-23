@@ -97,7 +97,7 @@ async def handle_keyword_news(event: MessageEvent):
 class NewsRequest(BaseModel):
     user_id: str
     category: str
-    source_name: str  # Default news source
+    source: str  # Default news source
     language: str   # Default language
 
 
@@ -109,6 +109,8 @@ async def generate_news(data: NewsRequest):
     # Normalize source name and category
     source = data.source_name.lower()
     category = data.category.strip()
+    language = data.language.strip()
+
     print(source, category)
     # Source & category URL map
     source_map = {
@@ -162,9 +164,14 @@ async def generate_news(data: NewsRequest):
         }
     }
 
-    # Get proper URL based on source/category (fallbacks if missing)
-    source_urls = category_map.get(source, category_map[source])
-    category_url = source_urls.get(category, source_urls[category])
+      # Get the category URL
+    source_categories = category_map.get(source)
+    if not source_categories:
+        raise HTTPException(status_code=400, detail="ไม่พบแหล่งข่าวที่กำหนด")
+
+    category_url = source_categories.get(category)
+    if not category_url:
+        raise HTTPException(status_code=400, detail="ไม่พบหมวดหมู่ข่าวที่กำหนด")
 
     query = f"""
 ขอข่าวที่เป็นกระแสในหมวด '{category}' ประจำวันที่ {today_date}
@@ -177,7 +184,7 @@ async def generate_news(data: NewsRequest):
             url=category_url,
             query=query,
             model="gemini-2.0-flash",
-            response_language=data.language
+            response_language=language
         )
 
         result = response.get("llm_response", "ไม่พบข้อมูลจากแหล่งข่าวที่กำหนด")
