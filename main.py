@@ -7,11 +7,7 @@ from pydantic import BaseModel
 from datetime import datetime
 from openperplex import OpenperplexAsync
 from httpx import AsyncClient as AsyncHTTPClient
-import google.generativeai as genai
 import re
-from linebot.models import StickerSendMessage
-
-
 
 def clean_and_add_emojis(text: str) -> str:
     # Remove asterisks
@@ -41,14 +37,9 @@ app.add_middleware(
 
 # LINE & OpenPerplex setup
 async_http_client = AsyncHTTPClient()
-line_bot_api = AsyncLineBotApi('eKkMgEbccG7xaNbNrk2V3vMSkvRT2i8rQCbQpMknar4t2k8Vy7bH3oaqAxmjmoCz0EtEVoJAdQWInsrg4Cm/06qBd8kyhmNhb9dAQkqKNYlxsJi6bdy0nEQ8NYkrKnCB8/8ZGH09ny3INKSxt0s2mQdB04t89/1O/w1cDnyilFU=', async_http_client)
-parser = WebhookParser('de8adfeffdaf6b8490df64b19079c6b6')
-
-# Gemini still used only for /generate-news
-genai.configure(api_key="AIzaSyCIzdW0XY_OBuCJtJ3pgI-nph04tn3-LeM")
-model = genai.GenerativeModel("gemini-2.0-flash")
-
-client = OpenperplexAsync(api_key="TezyZ85m68dC0XDMpq_DxKIuXyIFVc_IUvramJ1NKtw")
+line_bot_api = AsyncLineBotApi('YOUR_LINE_ACCESS_TOKEN', async_http_client)
+parser = WebhookParser('YOUR_LINE_CHANNEL_SECRET')
+client = OpenperplexAsync(api_key="YOUR_OPENPERPLEX_API_KEY")
 
 @app.post("/callback")
 async def callback(request: Request):
